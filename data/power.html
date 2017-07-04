@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<!--
+/*
+ * Copyright (C) 2017 Alex Williamson, all rights reserved.
+ *   Author: Alex Williamson <alex.l.williamson@gmail.com>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+-->
+<html>
+<head>
+	<title>Mylo PC Control</title>
+	<link type="text/css" rel="stylesheet" href="https://code.jquery.com/mobile/1.4.5/jquery.mobile-1.4.5.min.css">
+	<style type="text/css">
+		.disabled {opacity: 0.6;cursor: not-allowed;}
+	</style>
+	<script type="text/javascript">
+		var Power = 0;
+		function GetStatus() {
+			var R=new XMLHttpRequest();
+			R.onreadystatechange=function() {
+				if (this.readyState == 4) {
+					if (this.status == 200) {
+						if (this.responseXML != null) {
+							var pwrB=document.getElementById("Pwr");
+							var shtB=document.getElementById("Sht");
+							var rstB=document.getElementById("Rst");
+							var pwrS=document.getElementById("PwrSts");
+							if (this.responseXML.getElementsByTagName('status')[0].childNodes[0].nodeValue == "ON") {
+								Power = 1;
+								pwrB.innerHTML="Off";
+								pwrB.style.backgroundColor="#cc0000";
+								pwrB.style.color="white";
+								shtB.style.backgroundColor="#c04000";
+								shtB.style.color="white";
+								shtB.classList.remove("disabled");
+								rstB.style.backgroundColor="#e9ab17";
+								rstB.style.color="white";
+								rstB.classList.remove("disabled");
+								pwrS.innerHTML="On";
+							} else {
+								Power = 0;
+								pwrB.innerHTML="On";
+								pwrB.style.backgroundColor="#00ff00";
+								pwrB.style.color="black";
+								shtB.style.backgroundColor="#666362";
+								shtB.style.color="black";
+								shtB.classList.add("disabled");
+								rstB.style.backgroundColor="#666362";
+								rstB.style.color="black";
+								rstB.classList.add("disabled");
+								pwrS.innerHTML="Off";
+							}
+						}
+					}
+				}
+			}
+			R.open("GET", "power.xml", true);
+			R.send(null);
+			setTimeout('GetStatus()', 1000);
+		}
+		function DoPower() {
+			var R = new XMLHttpRequest();
+                        R.open("GET", Power ? "poweroff.xml" : "poweron.xml", true)
+                        R.send(null);
+		}
+		function DoShutdown() {
+			var R = new XMLHttpRequest();
+                        R.open("GET", "shutdown.xml", true)
+                        R.send(null);
+		}
+		function DoReset() {
+			var R = new XMLHttpRequest();
+                        R.open("GET", "reset.xml", true)
+                        R.send(null);
+		}
+                function GetName() {
+                        var R=new XMLHttpRequest();
+                        R.onreadystatechange=function() {
+                                if (this.readyState == 4) {
+                                        if (this.status == 200) {
+                                                if (this.responseXML != null) {
+                                                        document.getElementById("NetName").innerHTML = this.responseXML.getElementsByTagName('id')[0].childNodes[0].nodeValue;
+                                                }
+                                        }
+                                }
+                        }
+                        R.open("GET", "name.xml", true);
+                        R.send(null);
+                }
+	</script>
+</head>
+<body onload="GetName(); GetStatus();">
+	<h2><span id="NetName">System</span>: <span id="PwrSts">...</span></h2>
+	<div data-role="controlgroup" class="ui-controlgroup ui-controlgroup-horizontal ui-corner-all">
+	<div class="ui-controlgroup-controls">
+    	<button data-role="button" data-inline="false" class="ui-btn ui-btn-c ui-corner-all ui-icon-power ui-btn-icon-left ui-first-child" role="button" id="Pwr" onclick="DoPower()">...</button>
+		<button data-role="button" data-inline="false" class="ui-btn ui-btn-c ui-corner-all ui-icon-clock ui-btn-icon-left" role="button" id="Sht" onclick="DoShutdown()">Shutdown</button>
+		<button data-role="button" data-inline="false" class="ui-btn ui-btn-c ui-corner-all ui-icon-alert ui-btn-icon-left ui-last-child" role="button" id="Rst" onclick="DoReset()">Reset</button>
+	</div></div>
+</body>
+</html>

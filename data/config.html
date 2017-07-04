@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<!--
+/*
+ * Copyright (C) 2017 Alex Williamson, all rights reserved.
+ *   Author: Alex Williamson <alex.l.williamson@gmail.com>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+-->
+<html>
+<head>
+	<title>Mylo PC Configuration</title>
+	<style type="text/css">
+		.Container {width: 100%; overflow: hidden; position: relative;}
+		.MyBox {float: left; margin: 0 20px 20px 0;border: 2px solid black;padding: 0px 10px 10px 10px; width: 380px;}
+	</style>
+	<script type="text/javascript">
+		function SaveReset() {
+			var R=new XMLHttpRequest();
+			var sel = document.getElementById("APList");
+			var URI = "save.xml?";
+			if (sel.selectedIndex > 0) {
+				URI+="&SSID="+encodeURIComponent(sel.options[sel.selectedIndex].text);
+			} else {
+				URI+="&SSID="+encodeURIComponent(document.getElementById("ManualAP").value);
+			}
+			if (document.getElementById("NetPwd").value.length > 0) {
+				URI+="&PWD="+encodeURIComponent(document.getElementById("NetPwd").value);
+			}
+			if (document.getElementById("NetName").value.length > 0) {
+				URI+="&NAME="+encodeURIComponent(document.getElementById("NetName").value);
+			}
+			if (document.getElementById("HTTPEnable").checked == true) {
+				URI+="&WEB=1"
+				URI+="&WPORT="+encodeURIComponent(document.getElementById("HTTPPort").value);
+				if (document.getElementById("HTTPAuth").checked == true &&
+				    document.getElementById("HTTPUser").value.length > 0 &&
+				    document.getElementById("HTTPPwd").value.length > 0) {
+					URI+="&WAUTH=1"
+					URI+="&WUSR="+encodeURIComponent(document.getElementById("HTTPUser").value);
+					URI+="&WPWD="+encodeURIComponent(document.getElementById("HTTPPwd").value);
+				}
+			}
+			if (document.getElementById("MQTTEnable").checked == true) {
+				URI+="&MQTT=1";
+				URI+="&MHOST="+encodeURIComponent(document.getElementById("MQTTHost").value);
+				if (document.getElementById("MQTTPub").value.length > 0) {
+					URI+="&MPUB="+encodeURIComponent(document.getElementById("MQTTPub").value);
+				}
+				if (document.getElementById("MQTTSub").value.length > 0) {
+					URI+="&MSUB="+encodeURIComponent(document.getElementById("MQTTSub").value);
+				}
+				if (document.getElementById("MQTTUser").value.length > 0) {
+					URI+="&MUSR="+encodeURIComponent(document.getElementById("MQTTUser").value);
+				}
+				if (document.getElementById("MQTTPwd").value.length > 0) {
+					URI+="&MPWD="+encodeURIComponent(document.getElementById("MQTTPwd").value);
+				}
+				URI+="&MPORT="+encodeURIComponent(document.getElementById("MQTTPort").value);
+			}
+			if (document.getElementById("UARTEnable").checked == true) {
+				URI+="&UART=1";
+				sel=document.getElementById("PortSpeed");
+				URI+="&BAUD="+sel.options[sel.selectedIndex].text;
+				sel=document.getElementById("PortParity");
+				URI+="&PARITY="+sel.options[sel.selectedIndex].text;
+				sel=document.getElementById("PortBits");
+				URI+="&BITS="+sel.options[sel.selectedIndex].text;
+				sel= document.getElementById("PortStop");
+				URI+="&STOP="+sel.options[sel.selectedIndex].text;
+				URI+="&PORT="+document.getElementById("SrvPort").value;
+			}
+			R.open("GET", URI, true);
+			R.send(null);
+		}
+		function EraseConfig() {
+			var R=new XMLHttpRequest();
+			R.open("GET", "erase.xml", true)
+			R.send(null);
+		}
+		function UpdateAPs() {
+			var R=new XMLHttpRequest();
+			R.onreadystatechange=function() {
+				if (this.readyState == 4) {
+					if (this.status == 200) {
+						if (this.responseXML != null) {
+							var sel = document.getElementById("APList");
+							var frag = document.createDocumentFragment();
+							while (sel.options.length > 1) {
+								sel.remove(1);
+							}
+							for (i = 0; i < this.responseXML.getElementsByTagName('ap').length; i++) {
+								var opt = document.createElement('option');
+								opt.innerHTML = this.responseXML.getElementsByTagName('ap')[i].childNodes[0].nodeValue;
+								opt.value = this.responseXML.getElementsByTagName('ap')[i].childNodes[0].nodeValue;
+								frag.appendChild(opt);
+							}
+							sel.appendChild(frag);
+							sel.disabled = false;
+						}
+					}
+				}
+			}
+			document.getElementById("APList").disabled = true;
+			R.open("GET", "aplist.xml", true);
+			R.send(null);
+		}
+		function UpdateName() {
+			var R=new XMLHttpRequest();
+			R.onreadystatechange=function() {
+				if (this.readyState == 4) {
+					if (this.status == 200) {
+						if (this.responseXML != null) {
+							document.getElementById("NetName").value = "Mylo-" + this.responseXML.getElementsByTagName('id')[0].childNodes[0].nodeValue;
+							document.getElementById("MQTTPub").value = "/Mylo/" + this.responseXML.getElementsByTagName('id')[0].childNodes[0].nodeValue + "/status/";
+							document.getElementById("MQTTSub").value = "/Mylo/" + this.responseXML.getElementsByTagName('id')[0].childNodes[0].nodeValue + "/cmd/";
+   						}
+   					}
+   				}
+			}
+			R.open("GET", "name.xml", true);
+			R.send(null);
+   		}
+		function handleSelect() {
+			document.getElementById("ManualAP").disabled = (document.getElementById("APList").selectedIndex > 0);
+		}
+		function DoUARTEnable() {
+			var en = document.getElementById("UARTEnable").checked;
+			document.getElementById("PortSpeed").disabled = !en;
+			document.getElementById("PortParity").disabled = !en;
+			document.getElementById("PortBits").disabled = !en;
+			document.getElementById("PortStop").disabled = !en;
+			document.getElementById("SrvPort").disabled = !en;
+			if (!en) {
+				document.getElementById("PortSpeed").selectedIndex = 0;
+				document.getElementById("PortParity").selectedIndex = 0;
+				document.getElementById("PortBits").selectedIndex = 0;
+				document.getElementById("PortStop").selectedIndex = 0;
+				document.getElementById("SrvPort").value = "9999";
+			}
+		}
+		function DoHTTPEnable() {
+			var en = document.getElementById("HTTPEnable").checked;
+			document.getElementById("HTTPPort").disabled = !en;
+			document.getElementById("HTTPAuth").disabled = !en;
+			if (!en) {
+				document.getElementById("HTTPPort").value = "80";
+				document.getElementById("HTTPAuth").checked = en;
+				document.getElementById("HTTPUser").disabled = !en;
+				document.getElementById("HTTPUser").value = "";
+				document.getElementById("HTTPPwd").disabled = !en;
+				document.getElementById("HTTPPwd").value = "";
+			}
+		}
+		function DoHTTPAuth() {
+			var en = document.getElementById("HTTPAuth").checked;
+			document.getElementById("HTTPUser").disabled = !en;
+			document.getElementById("HTTPPwd").disabled = !en;
+			if (!en) {
+				document.getElementById("HTTPUser").value = "";
+				document.getElementById("HTTPPwd").value = "";
+			}
+		}
+		function DoMQTTEnable() {
+			var en = document.getElementById("MQTTEnable").checked;
+			document.getElementById("MQTTHost").disabled = !en;
+			document.getElementById("MQTTPub").disabled = !en;
+			document.getElementById("MQTTSub").disabled = !en;
+			document.getElementById("MQTTUser").disabled = !en;
+			document.getElementById("MQTTPwd").disabled = !en;
+			document.getElementById("MQTTPort").disabled = !en;
+			if (!en) {
+				document.getElementById("MQTTHost").value = "";
+				document.getElementById("MQTTUser").value = "";
+				document.getElementById("MQTTPwd").value = "";
+				document.getElementById("MQTTPort").value = "1883";
+			}
+		}
+	</script>
+</head>
+<body onload="UpdateName(); UpdateAPs();">
+	<h1>Mylo Setup</h1>
+	<div class="Container">
+		<div class="MyBox">
+			<h2>Network</h2>
+			<form onchange="handleSelect()">
+				<label>SSID:</label>
+				<select style="float: right;" id="APList" disabled="true"><option>&lt;Manual/hidden entry&gt;</option></select><br/><br/>
+				<label>Hidden SSID:</label>
+				<input style="float: right;" type="text" id="ManualAP" maxlength="32"/><br/><br/>
+				<label>Password:</label>
+				<input style="float: right;" type="password" id="NetPwd" maxlength="64" placeholder="Blank for open network"/><br/></br>
+				<label>DHCP Name:</label>
+				<input style="float: right;" type="text" id="NetName" maxlength="32"/><br/>
+			</form>
+		</div>
+	</div>
+	<div class="Container">
+		<div class="MyBox">
+			<h2>Web</h2>
+			<form>
+				<label>HTTP Server Enabled:</label>
+				<input style="float: right;" type="checkbox" id="HTTPEnable" checked onchange="DoHTTPEnable()"/><br/><br/>
+				<label>Port:</label>
+				<input style="float: right; text-align: right;" type="number" id="HTTPPort" maxlength="5" value="80"/><br/><br/>
+				<label>HTTP Basic Authentication:</label>
+				<input style="float: right;" type="checkbox" id="HTTPAuth" onchange="DoHTTPAuth()"/><br/><br/>
+				<label>Username:</label>
+				<input style="float: right;" type="text" id="HTTPUser" maxlength="32" disabled="true"/><br/><br/>
+				<label>Password:</label>
+				<input style="float: right;" type="password" id="HTTPPwd" maxlength="32" disabled="true"/><br/>
+			</form>
+		</div>
+	</div>
+	<div class="Container">
+		<div class="MyBox">
+			<h2>MQTT</h2>
+			<form>
+				<label>MQTT Enabled:</label>
+				<input style="float: right;" type="checkbox" id="MQTTEnable" onchange="DoMQTTEnable()"/><br/><br/>
+				<label>Host:</label>
+				<input style="float: right;" type="text" id="MQTTHost" maxlength="32" disabled="true"/><br/><br/>
+				<label>Port:</label>
+				<input style="float: right; text-align: right;" type="number" id="MQTTPort" maxlength="5" value="1883" disabled="true"/></br></br>
+				<label>Publish:</label>
+				<input style="float: right;" type="text" id="MQTTPub" maxlength="32" disabled="true"/><br/><br/>
+				<label>Subscribe:</label>
+				<input style="float: right;" type="text" id="MQTTSub" maxlength="32" disabled="true"/><br/><br/>
+				<label>Username:</label>
+				<input style="float: right;" type="text" id="MQTTUser" maxlength="32" disabled="true"/><br/><br/>
+				<label>Password:</label>
+				<input style="float: right;" type="password" id="MQTTPwd" maxlength="32" disabled="true"/><br/>
+			</form>
+		</div>
+	</div>
+	<div class="Container">
+		<div class="MyBox">
+			<h2>Serial</h2>
+			<form>
+				<label>UART Server Enabled:</label>
+				<input style="float: right;" type="checkbox" id="UARTEnable" checked onchange="DoUARTEnable()" /><br/><br/>
+				<label>Speed:</label>
+				<select id="PortSpeed">
+					<option selected>115200</option>
+					<option>57600</option>
+					<option>38400</option>
+					<option>19200</option>
+					<option>9600</option>
+				</select>
+				<label>Parity:</label>
+				<select id="PortParity">
+					<option selected>None</option>
+					<option>Even</option>
+					<option>Odd</option>
+				</select>
+				<label>Bits:</label>
+				<select id="PortBits">
+					<option selected>8</option>
+					<option>7</option>
+					<option>6</option>
+					<option>5</option>
+				</select>
+				<label>Stop:</label>
+				<select id="PortStop">
+					<option selected>1</option>
+					<option>1.5</option>
+					<option>2</option>
+				</select><br/><br/>
+				<label>Server Port:</label>
+				<input style="float: right; text-align: right;" type="number" id="SrvPort" maxlength="5" value="9999"/><br/>
+			</form>
+		</div>
+	</div>
+	<div>
+		<button type="submit" onclick="SaveReset()">Save &amp; Reset</button>
+		<button type="submit" onclick="EraseConfig()">Erase Config</button>
+		<button type="submit" onclick="UpdateAPs()">Refresh APs</button>
+	</div>
+	</br></br><a href="/power.html">Local power control</a>
+</body>
+</html>
